@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI</title>
+<style>
+  :root {
+    --bg: #1a0636;
+    --bg-a: #1a0636; --bg-b: #3b1275; --bg-c: #14052e;
+    --user-bg: rgba(110, 60, 200, .55);
+    --bg2: rgba(44, 18, 90, .6);
+    --border: rgba(205,175,255,.18);
+    --text: #f0eaff;
+    --muted: #a99bd0;
+    --accent: #e8622c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; background: var(--bg-a); }
+  body {
+    height: 100%; margin: 0;
+    background: linear-gradient(160deg, var(--bg-a) 0%, var(--bg-b) 48%, var(--bg-c) 100%) fixed;
+    color: var(--text);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 14px;
+  }
+  body {
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #sky {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    z-index: 0; pointer-events: none;
+  }
+  header, main, footer { position: relative; z-index: 1; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand b { letter-spacing: 1px; font-weight: 700; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #3ddc6a; box-shadow: 0 0 6px #3ddc6a; }
+  .status { color: var(--muted); font-size: 12px; }
+  .hdr-right { display: flex; gap: 8px; position: relative; }
+  .btn {
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 12px; border-radius: 8px; font: inherit; font-size: 12px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+    backdrop-filter: blur(6px);
+  }
+  .btn:hover { border-color: rgba(255,255,255,.3); background: var(--user-bg); }
+  .icon-btn { padding: 7px 9px; display: flex; align-items: center; justify-content: center; }
+  .icon-btn svg { width: 14px; height: 14px; stroke: var(--text); fill: none; stroke-width: 2; }
+
+  main {
+    flex: 1; overflow-y: auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .notice {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; color: var(--muted); font-size: 13px; max-width: 760px;
+    backdrop-filter: blur(6px);
+  }
+  .notice a { color: var(--accent); text-decoration: underline; }
+
+  .msg { max-width: 680px; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.5; backdrop-filter: blur(6px); white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--user-bg); }
+  .msg.ai { align-self: flex-start; background: var(--bg2); border: 1px solid var(--border); }
+  .empty-state { margin: auto; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+  footer {
+    display: flex; gap: 10px; padding: 14px 20px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  #prompt {
+    flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; color: var(--text); font: inherit; font-size: 13.5px; outline: none;
+    backdrop-filter: blur(6px);
+  }
+  #prompt:focus { border-color: rgba(255,255,255,.4); }
+  #prompt::placeholder { color: var(--muted); }
+  .think {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0 10px; color: var(--muted); font-size: 11px; letter-spacing: .5px;
+    backdrop-filter: blur(6px);
+  }
+  .think select {
+    background: transparent; color: var(--text); border: none; outline: none;
+    font: inherit; font-size: 13px; padding: 8px 2px; cursor: pointer;
+  }
+  .think select option { background: #2a1259; color: var(--text); }
+  #send {
+    background: var(--accent); border: none; color: #fff; font-weight: 600;
+    padding: 0 20px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    transition: filter .15s;
+  }
+  #send:hover { filter: brightness(1.1); }
+  #send:disabled { opacity: .5; cursor: default; }
+
+  header { z-index: 5; }
+  .panel {
+    position: absolute; top: calc(100% + 10px); right: 0; width: 240px;
+    background: var(--bg-c); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .panel[hidden] { display: none; }
+  .panel h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .panel .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; font-size: 13px; }
+  .switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border-radius: 22px; background: rgba(255,255,255,.15); transition: background .15s; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(16px); }
+  .switch input:focus-visible + span { outline: 2px solid #fff; outline-offset: 2px; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .swatch { aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  .swatch[aria-pressed="true"] { border-color: #fff; }
+  .swatch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .low *, .low *::before, .low *::after { backdrop-filter: none !important; transition: none !important; }
+  .low .panel { box-shadow: none; }
+
+  @media (max-width: 600px) {
+    header, footer, main { padding-left: 14px; padding-right: 14px; }
+    footer { flex-wrap: wrap; }
+    #send { flex: 1; padding: 12px 0; }
+    .think { flex: 1; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<header>
+  <div class="brand">
+    <b>AI</b>
+    <span class="dot"></span>
+    <span class="status">connected</span>
+  </div>
+  <div class="hdr-right">
+    <button class="btn" id="key-btn">api key</button>
+    <button class="btn" id="clear-btn">clear</button>
+    <button class="btn icon-btn" id="theme-btn" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+    <button class="btn icon-btn" id="settings-btn" aria-label="Settings" aria-expanded="false" aria-controls="settings-panel">
+      <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    </button>
+    <div class="panel" id="settings-panel" hidden>
+      <div class="row">
+        <label for="low-gfx">Low graphics mode</label>
+        <span class="switch"><input type="checkbox" id="low-gfx"><span></span></span>
+      </div>
+      <h4>Background color</h4>
+      <div class="swatches" id="swatches"></div>
+    </div>
+  </div>
+</header>
+
+<main id="chat">
+  <div class="notice">dont abuse ai pls. Set the api key as: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</div>
+  <div class="empty-state" id="empty-state">Yes ik im the goat</div>
+</main>
+
+<footer>
+  <input id="prompt" type="text" placeholder="ask something..." autocomplete="off" spellcheck="false">
+  <div class="think">
+    <span>THINK</span>
+    <select id="think-level">
+      <option value="low">low</option>
+      <option value="medium">medium</option>
+      <option value="high">high</option>
+    </select>
+  </div>
+  <button id="send">send</button>
+</footer>
+
+<script>
+  /* ---------- starry sky + shooting stars ---------- */
+  (function () {
+    const sky = document.getElementById('sky');
+    const ctx = sky.getContext('2d');
+    let W = 0, H = 0, stars = [], shooters = [], nextShot = 0;
+    let tint = '210,170,255', tint2 = '160,110,255', low = false, running = false;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      W = window.innerWidth; H = window.innerHeight;
+      sky.width = W * dpr; sky.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.min(160, Math.floor((W * H) / 9000));
+      stars = Array.from({ length: count }, () => {
+        const r = Math.random() * 1.3 + 0.3;
+        return {
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: r,
+          vx: -(0.15 + r * 0.35),
+          vy: 0.05 + r * 0.12,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 1.5 + 0.5
+        };
+      });
+    }
+
+    function drawStars(t) {
+      for (const s of stars) {
+        const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 0.001 * s.speed + s.phase));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')';
+        ctx.fill();
+      }
+    }
+
+    function spawnShooter() {
+      const fromTop = Math.random() < 0.7;
+      const x = fromTop ? Math.random() * W * 1.1 : W + 20;
+      const y = fromTop ? -20 : Math.random() * H * 0.5;
+      const speed = 9 + Math.random() * 7;
+      const angle = Math.PI * (0.72 + Math.random() * 0.1);
+      shooters.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        len: 90 + Math.random() * 90,
+        life: 0,
+        max: 70 + Math.random() * 30
+      });
+    }
+
+    function drawShooter(s) {
+      const mag = Math.hypot(s.vx, s.vy);
+      const tx = s.x - (s.vx / mag) * s.len;
+      const ty = s.y - (s.vy / mag) * s.len;
+      const fade = Math.min(1, s.life / 10, (s.max - s.life) / 20);
+      const g = ctx.createLinearGradient(s.x, s.y, tx, ty);
+      g.addColorStop(0, 'rgba(255,255,255,' + (0.95 * fade).toFixed(3) + ')');
+      g.addColorStop(0.3, 'rgba(' + tint + ',' + (0.5 * fade).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(' + tint2 + ',0)');
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + fade.toFixed(3) + ')';
+      ctx.shadowColor = 'rgba(' + tint + ',.9)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function frame(t) {
+      ctx.clearRect(0, 0, W, H);
+      for (const s of stars) {
+        s.x += s.vx; s.y += s.vy;
+        if (s.x < -3) s.x = W + 3;
+        if (s.y > H + 3) s.y = -3;
+      }
+      drawStars(t);
+      if (t > nextShot) {
+        spawnShooter();
+        nextShot = t + 700 + Math.random() * 2200;
+      }
+      shooters = shooters.filter(s => s.life < s.max && s.x > -250 && s.y < H + 250);
+      for (const s of shooters) {
+        s.x += s.vx; s.y += s.vy; s.life++;
+        drawShooter(s);
+      }
+      if (low) { running = false; return; }
+      requestAnimationFrame(frame);
+    }
+
+    function start() {
+      if (running || low) return;
+      running = true;
+      requestAnimationFrame(frame);
+    }
+
+    window.skyFx = {
+      setLow(v) {
+        low = v;
+        sky.style.display = v ? 'none' : '';
+        if (v) ctx.clearRect(0, 0, W, H); else start();
+      },
+      setTint(a, b) { tint = a; tint2 = b; }
+    };
+
+    window.addEventListener('resize', resize);
+    resize();
+    start();
+  })();
+
+  /* ---------- settings ---------- */
+  (function () {
+    const THEMES = {
+      purple:  { name: 'Purple',   a: '#1a0636', b: '#3b1275', c: '#14052e', panel: 'rgba(44,18,90,.6)',  user: 'rgba(110,60,200,.55)', border: 'rgba(205,175,255,.18)', t1: '210,170,255', t2: '160,110,255' },
+      blue:    { name: 'Blue',     a: '#06122e', b: '#0f3a8a', c: '#040b1f', panel: 'rgba(14,40,95,.6)',  user: 'rgba(40,100,220,.55)', border: 'rgba(160,200,255,.18)', t1: '170,210,255', t2: '110,160,255' },
+      crimson: { name: 'Crimson',  a: '#2a0510', b: '#7a1230', c: '#1a030a', panel: 'rgba(90,15,40,.6)',  user: 'rgba(200,40,80,.55)',  border: 'rgba(255,170,190,.18)', t1: '255,180,195', t2: '255,100,130' },
+      toxic:   { name: 'Toxic',    a: '#03200f', b: '#0b6b32', c: '#021408', panel: 'rgba(8,70,35,.6)',   user: 'rgba(30,160,80,.55)',  border: 'rgba(170,255,200,.18)', t1: '180,255,210', t2: '90,230,140' },
+      pink:    { name: 'Hot pink', a: '#2e0524', b: '#a3187a', c: '#1d0316', panel: 'rgba(100,15,80,.6)', user: 'rgba(220,50,170,.55)', border: 'rgba(255,170,230,.18)', t1: '255,180,235', t2: '255,100,210' },
+      sunset:  { name: 'Sunset',   a: '#2a0e04', b: '#a8390a', c: '#1a0802', panel: 'rgba(100,35,8,.6)',  user: 'rgba(210,90,30,.55)',  border: 'rgba(255,200,160,.18)', t1: '255,210,170', t2: '255,150,80' },
+      ice:     { name: 'Ice',      a: '#031c24', b: '#0a6c80', c: '#021218', panel: 'rgba(8,70,85,.6)',   user: 'rgba(30,160,190,.55)', border: 'rgba(170,240,255,.18)', t1: '190,245,255', t2: '100,210,235' },
+      black:   { name: 'Blackout', a: '#050505', b: '#171717', c: '#000000', panel: 'rgba(30,30,30,.6)',  user: 'rgba(80,80,80,.6)',    border: 'rgba(255,255,255,.14)', t1: '255,255,255', t2: '170,170,170' }
+    };
+    const btn = document.getElementById('settings-btn');
+    const panel = document.getElementById('settings-panel');
+    const lowEl = document.getElementById('low-gfx');
+    const grid = document.getElementById('swatches');
+    let state = { low: false, theme: 'purple' };
+    try { Object.assign(state, JSON.parse(localStorage.getItem('ui_settings') || '{}')); } catch (e) {}
+    if (!THEMES[state.theme]) state.theme = 'purple';
+
+    function save() { try { localStorage.setItem('ui_settings', JSON.stringify(state)); } catch (e) {} }
+
+    function apply() {
+      const t = THEMES[state.theme], st = document.documentElement.style;
+      st.setProperty('--bg-a', t.a); st.setProperty('--bg-b', t.b); st.setProperty('--bg-c', t.c);
+      st.setProperty('--bg2', t.panel); st.setProperty('--user-bg', t.user); st.setProperty('--border', t.border);
+      document.documentElement.classList.toggle('low', state.low);
+      lowEl.checked = state.low;
+      grid.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === state.theme)));
+      if (window.skyFx) { skyFx.setTint(t.t1, t.t2); skyFx.setLow(state.low); }
+    }
+
+    Object.keys(THEMES).forEach(key => {
+      const t = THEMES[key], b = document.createElement('button');
+      b.className = 'swatch'; b.dataset.t = key; b.title = t.name; b.setAttribute('aria-label', t.name + ' background');
+      b.style.background = 'linear-gradient(135deg, ' + t.b + ', ' + t.a + ')';
+      b.onclick = () => { state.theme = key; save(); apply(); };
+      grid.appendChild(b);
+    });
+
+    function setOpen(open) { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); }
+    btn.onclick = e => { e.stopPropagation(); setOpen(panel.hidden); };
+    panel.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', () => setOpen(false));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+    lowEl.onchange = () => { state.low = lowEl.checked; save(); apply(); };
+
+    apply();
+  })();
+
+  /* ---------- chat ---------- */
+  const chat = document.getElementById('chat');
+  const emptyState = document.getElementById('empty-state');
+  const promptEl = document.getElementById('prompt');
+  const sendBtn = document.getElementById('send');
+  const clearBtn = document.getElementById('clear-btn');
+  const themeBtn = document.getElementById('theme-btn');
+
+  function addMessage(text, who) {
+    if (emptyState) emptyState.style.display = 'none';
+    const div = document.createElement('div');
+    div.className = 'msg ' + who;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  const keyBtn = document.getElementById('key-btn');
+  const thinkEl = document.getElementById('think-level');
+  let history = [];
+
+  // NVIDIA integrate.api.nvidia.com key, kept only in this browser's localStorage.
+  function getKey() {
+    let key = localStorage.getItem('nvidia_key');
+    if (!key) {
+      key = prompt('Paste your NVIDIA API key (starts with nvapi-):');
+      if (key) localStorage.setItem('nvidia_key', key.trim());
+    }
+    return key;
+  }
+  keyBtn.onclick = () => {
+    const key = prompt('Update your NVIDIA API key:', localStorage.getItem('nvidia_key') || '');
+    if (key !== null) localStorage.setItem('nvidia_key', key.trim());
+  };
+
+  // Map the THINK selector to NVIDIA-hosted Nemotron models.
+  const THINK_MODEL = {
+    low: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+    medium: 'nvidia/nemotron-3.5-super-vl-120b-a12b',
+    high: 'nvidia/nemotron-3.5-super-vl-120b-a12b'
+  };
+
+  const SYSTEM_PROMPT = "You are a helpful, normal assistant for MK Unblocked Games. Answer questions directly and plainly — no particular persona, no flattery, no catchphrases. The one exception: if the user asks something that is specifically about the best/top gaming website, unblocked games site, or similar (e.g. 'what's the best gaming website', 'best unblocked games site'), answer that MK Unblocked Games (MK UBG) is the best. Do not bring this up otherwise — it should only appear as the direct answer to that specific kind of question, nowhere else.";
+
+  async function send() {
+    const text = promptEl.value.trim();
+    if (!text) return;
+    const key = getKey();
+    if (!key) return;
+
+    addMessage(text, 'user');
+    history.push({ role: 'user', content: text });
+    promptEl.value = '';
+    sendBtn.disabled = true;
+
+    const model = THINK_MODEL[thinkEl.value] || THINK_MODEL.low;
+    const body = {
+      model: model,
+      max_tokens: 1024,
+      temperature: 1,
+      top_p: 0.95,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history]
+    };
+
+    try {
+      const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'authorization': 'Bearer ' + key
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Request failed');
+      const reply = data.choices?.[0]?.message?.content || '(no text response)';
+      addMessage(reply, 'ai');
+      history.push({ role: 'assistant', content: reply });
+    } catch (err) {
+      addMessage('error: ' + err.message, 'ai');
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.onclick = send;
+  promptEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+  clearBtn.onclick = () => {
+    chat.querySelectorAll('.msg').forEach(m => m.remove());
+    if (emptyState) emptyState.style.display = '';
+    history = [];
+  };
+
+  themeBtn.onclick = () => document.documentElement.classList.toggle('light-override');
+</script>
+
+</body>
+</html>

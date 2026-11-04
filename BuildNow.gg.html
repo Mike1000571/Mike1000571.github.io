@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en-us">
+  <head><script>window.dataLayer=[];window.gtag=function(){};window.ga=function(){};(function(){var bad=new RegExp("(^|\\.)(googletagmanager\\.com|google-analytics\\.com|analytics\\.google\\.com|r9x\\.in|googlesyndication\\.com|doubleclick\\.net|adnxs\\.com|adsterra\\.com|highperformanceformat\\.com|effectivegatecpm\\.com|profitableratecpm\\.com|propellerads\\.com|popads\\.net|a-ads\\.com)$","i");function blocked(u){try{return bad.test(new URL(u,location.href).hostname)}catch(e){return false}}[window.HTMLScriptElement,window.HTMLIFrameElement].forEach(function(C){if(!C)return;var d=Object.getOwnPropertyDescriptor(C.prototype,"src");if(!d||!d.set)return;Object.defineProperty(C.prototype,"src",{configurable:true,enumerable:d.enumerable,get:d.get,set:function(v){if(blocked(v))return;d.set.call(this,v)}})});var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(/^src$/i.test(n)&&(this instanceof HTMLScriptElement||this instanceof HTMLIFrameElement)&&blocked(v))return;return sa.apply(this,arguments)};})();</script><style>#sidebarad1,#sidebarad2{display:none!important}</style><script>(function(){var re=new RegExp("/(blob:null/[0-9a-f-]{36})([?#]|$)","i");function fix(u){try{var s=String(u&&u.url!==undefined?u.url:u);if(s.indexOf("blob:")===0)return null;var m=s.match(re);if(m)return m[1]}catch(e){}return null}var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){var f=fix(u);if(f){var a=[].slice.call(arguments);a[1]=f;return o.apply(this,a)}return o.apply(this,arguments)};if(window.fetch){var F=window.fetch;window.fetch=function(i,n){var f=fix(i);return F.call(this,f||i,n)}}if(self.origin==="null"){var H=new RegExp("^https?://(cdn[.]jsdelivr[.]net|raw[.]githubusercontent[.]com|rawcdn[.]githack[.]com|raw[.]githack[.]com|unpkg[.]com|[^/]+[.]github[.]io)/","i");var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(d&&d.set)Object.defineProperty(HTMLImageElement.prototype,"src",{configurable:true,enumerable:d.enumerable,get:d.get,set:function(v){try{if(this.crossOrigin===null&&H.test(new URL(v,document.baseURI).href))this.crossOrigin="anonymous"}catch(e){}d.set.call(this,v)}});var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){try{if(this instanceof HTMLImageElement&&String(n).toLowerCase()==="src"&&this.crossOrigin===null&&H.test(new URL(v,document.baseURI).href))this.crossOrigin="anonymous"}catch(e){}return sa.apply(this,arguments)}}})();</script><script>(function gameProgressHook() {
+    var report = function (ev) {
+        try { if (window.parent && window.parent !== window && window.parent.__gnmathLoadProgress) window.parent.__gnmathLoadProgress(ev); } catch (e) {}
+    };
+    var seq = 0;
+    var origFetch = window.fetch;
+    if (origFetch) {
+        window.fetch = function () {
+            var id = ++seq;
+            report({ t: "start", id: id });
+            return origFetch.apply(this, arguments).then(function (res) {
+                try {
+                    var total = Number(res.headers.get("content-length")) || 0;
+                    report({ t: "progress", id: id, loaded: 0, total: total });
+                    if (res.body && res.clone && !res.bodyUsed) {
+                        var reader = res.clone().body.getReader();
+                        var loaded = 0;
+                        var pump = function () {
+                            reader.read().then(function (r) {
+                                if (r.done) { report({ t: "end", id: id, loaded: loaded, total: total }); return; }
+                                loaded += r.value.byteLength;
+                                report({ t: "progress", id: id, loaded: loaded, total: total });
+                                pump();
+                            }, function () { report({ t: "end", id: id, loaded: loaded, total: total }); });
+                        };
+                        pump();
+                    } else {
+                        report({ t: "end", id: id, loaded: total, total: total });
+                    }
+                } catch (e) { report({ t: "end", id: id }); }
+                return res;
+            }, function (err) { report({ t: "end", id: id }); throw err; });
+        };
+    }
+    if (window.XMLHttpRequest) {
+        var origSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function () {
+            var id = ++seq;
+            report({ t: "start", id: id });
+            this.addEventListener("progress", function (e) {
+                report({ t: "progress", id: id, loaded: e.loaded, total: e.lengthComputable ? e.total : 0 });
+            });
+            this.addEventListener("loadend", function (e) {
+                report({ t: "end", id: id, loaded: e.loaded || 0, total: e.lengthComputable ? e.total : 0 });
+            });
+            return origSend.apply(this, arguments);
+        };
+    }
+})();</script><script>(function gameDataHook() {
+    var send = function (ev) {
+        try { if (window.parent && window.parent !== window && window.parent.__gnmathTrackData) window.parent.__gnmathTrackData(ev); } catch (e) {}
+    };
+    try {
+        var S = window.Storage && Storage.prototype;
+        if (S) {
+            var setItem = S.setItem;
+            S.setItem = function (k) { if (this === window.localStorage) send({ t: "ls", key: String(k) }); return setItem.apply(this, arguments); };
+        }
+    } catch (e) {}
+    try {
+        var P = window.IDBObjectStore && IDBObjectStore.prototype;
+        if (P) ["put", "add"].forEach(function (m) {
+            var orig = P[m];
+            P[m] = function () {
+                var req = orig.apply(this, arguments);
+                var db = this.transaction.db.name, store = this.name;
+                req.addEventListener("success", function () { send({ t: "idb", db: db, store: store, key: req.result }); });
+                return req;
+            };
+        });
+        var C = window.IDBCursor && IDBCursor.prototype;
+        if (C && C.update) {
+            var upd = C.update;
+            C.update = function () {
+                try { var src = this.source; var os = src.objectStore || src; send({ t: "idb", db: os.transaction.db.name, store: os.name, key: this.primaryKey }); } catch (e) {}
+                return upd.apply(this, arguments);
+            };
+        }
+    } catch (e) {}
+})();</script>
+    <base href="https://cdn.jsdelivr.net/gh/bubblfan/cg-rip@main/buildnow-gg/">
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  
+</head>
+  <body style="margin:0;padding:0" class="noselect">
+    <div id="loading-text" style="color: black; font-size: 48px; font-family: cursive; text-align: center; margin-top: 20px;">LOADING...</div>
+    <canvas id="unity-canvas"
+      style="position:fixed;top:0;left:0;width:100%;height:100%;outline:none"></canvas>
+
+    <script>
+    const SPLIT_MAP = {"7db022abd161455e3cc5f207e75d294b.wasm": null, "ab8dd356a41a2943639294657a0990f8.data": null};
+    </script>
+
+    <script>
+    async function mergeParts(baseUrl) {
+      const parts = [];
+      for (let i = 1; i <= 99; i++) {
+        const testUrl = baseUrl + ".part" + i;
+        try {
+          const head = await fetch(testUrl, { method: "HEAD" });
+          if (!head.ok) break;
+          parts.push(testUrl);
+        } catch { break; }
+      }
+      if (parts.length === 0) return baseUrl;
+
+      const buffers = await Promise.all(parts.map(async (u) => {
+        const r = await fetch(u);
+        if (!r.ok) throw new Error("Failed part " + u);
+        return new Uint8Array(await r.arrayBuffer());
+      }));
+
+      const total = buffers.reduce((a, b) => a + b.length, 0);
+      const merged = new Uint8Array(total);
+      let offset = 0;
+      for (const b of buffers) { merged.set(b, offset); offset += b.length; }
+
+      return URL.createObjectURL(new Blob([merged]));
+    }
+
+    async function preMergeAll() {
+      const map = {};
+      const files = Object.entries(SPLIT_MAP);
+      const total = files.length;
+      let done = 0;
+
+      const loadingText = document.getElementById("loading-text");
+
+      for (const [file, _] of files) {
+        const merged = await mergeParts("Build/" + file);
+        map[file] = merged;
+        done++;
+        const percent = Math.floor((done / total) * 100);
+        loadingText.innerText = `LOADING... ${percent}%`;
+        console.log("Premerged:", file, "→", merged);
+      }
+
+      loadingText.style.display = "none";
+
+      return map;
+    }
+
+    (async () => {
+      const mergedMap = await preMergeAll();
+      window.SPLIT_MAP = mergedMap;
+      const origFetch = window.fetch;
+      window.fetch = async function(resource, options) {
+        if (typeof resource === "string") {
+          const key = resource.split("/").pop();
+          if (mergedMap[key]) {
+            console.log("Redirect fetch:", key);
+            return origFetch(mergedMap[key], options);
+          }
+          if (resource.includes("StreamingAssets")) {
+            return origFetch((document.querySelector('base').href !== null ? document.querySelector('base').href+"/" : "") + "StreamingAssets/"+resource.split("/StreamingAssets/")[1])
+          }
+        }
+        return origFetch(resource, options);
+      };
+
+      const OrigXHR = window.XMLHttpRequest;
+      window.XMLHttpRequest = function() {
+        const xhr = new OrigXHR();
+        const origOpen = xhr.open;
+        xhr.open = function(method, url, ...rest) {
+          const key = url.split("/").pop();
+          if (mergedMap[key]) {
+            console.log("Redirect XHR:", key);
+            origOpen.call(xhr, method, mergedMap[key], ...rest);
+          } else {
+            origOpen.call(xhr, method, url, ...rest);
+          }
+        };
+        return xhr;
+      };
+
+      const canvas = document.querySelector("#unity-canvas");
+      const loaderUrl = "Build/7a2dbded24d57e056180125b1583e7c4.loader.js";
+      const config = {
+        dataUrl: "Build/ab8dd356a41a2943639294657a0990f8.data",
+        frameworkUrl: "Build/91a2bfcec140bc524100478b99a4f6d7.framework.js",
+        codeUrl: "Build/7db022abd161455e3cc5f207e75d294b.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "BuildNow GG",
+        productName: "BuildNow GG",
+        productVersion: "1.0.0"
+      };
+
+      const script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {}).then((unityInstance) => {
+          window.gameInstance = unityInstance;
+        }).catch((message) => alert(message));
+      };
+      document.body.appendChild(script);
+    })();
+    </script>
+
+    <script>
+    function resizeCanvas() {
+      const canvas = document.getElementById("unity-canvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+    }
+    window.addEventListener("load", resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+    </script>
+  
+
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head><script>window.dataLayer=[];window.gtag=function(){};window.ga=function(){};(function(){var bad=new RegExp("(^|\\.)(googletagmanager\\.com|google-analytics\\.com|analytics\\.google\\.com|r9x\\.in|googlesyndication\\.com|doubleclick\\.net|adnxs\\.com|adsterra\\.com|highperformanceformat\\.com|effectivegatecpm\\.com|profitableratecpm\\.com|propellerads\\.com|popads\\.net|a-ads\\.com)$","i");function blocked(u){try{return bad.test(new URL(u,location.href).hostname)}catch(e){return false}}[window.HTMLScriptElement,window.HTMLIFrameElement].forEach(function(C){if(!C)return;var d=Object.getOwnPropertyDescriptor(C.prototype,"src");if(!d||!d.set)return;Object.defineProperty(C.prototype,"src",{configurable:true,enumerable:d.enumerable,get:d.get,set:function(v){if(blocked(v))return;d.set.call(this,v)}})});var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if(/^src$/i.test(n)&&(this instanceof HTMLScriptElement||this instanceof HTMLIFrameElement)&&blocked(v))return;return sa.apply(this,arguments)};})();</script><style>#sidebarad1,#sidebarad2{display:none!important}</style><script>(function(){var re=new RegExp("/(blob:null/[0-9a-f-]{36})([?#]|$)","i");function fix(u){try{var s=String(u&&u.url!==undefined?u.url:u);if(s.indexOf("blob:")===0)return null;var m=s.match(re);if(m)return m[1]}catch(e){}return null}var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){var f=fix(u);if(f){var a=[].slice.call(arguments);a[1]=f;return o.apply(this,a)}return o.apply(this,arguments)};if(window.fetch){var F=window.fetch;window.fetch=function(i,n){var f=fix(i);return F.call(this,f||i,n)}}if(self.origin==="null"){var H=new RegExp("^https?://(cdn[.]jsdelivr[.]net|raw[.]githubusercontent[.]com|rawcdn[.]githack[.]com|raw[.]githack[.]com|unpkg[.]com|[^/]+[.]github[.]io)/","i");var d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(d&&d.set)Object.defineProperty(HTMLImageElement.prototype,"src",{configurable:true,enumerable:d.enumerable,get:d.get,set:function(v){try{if(this.crossOrigin===null&&H.test(new URL(v,document.baseURI).href))this.crossOrigin="anonymous"}catch(e){}d.set.call(this,v)}});var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){try{if(this instanceof HTMLImageElement&&String(n).toLowerCase()==="src"&&this.crossOrigin===null&&H.test(new URL(v,document.baseURI).href))this.crossOrigin="anonymous"}catch(e){}return sa.apply(this,arguments)}}})();</script><script>(function gameProgressHook() {
+    var report = function (ev) {
+        try { if (window.parent && window.parent !== window && window.parent.__gnmathLoadProgress) window.parent.__gnmathLoadProgress(ev); } catch (e) {}
+    };
+    var seq = 0;
+    var origFetch = window.fetch;
+    if (origFetch) {
+        window.fetch = function () {
+            var id = ++seq;
+            report({ t: "start", id: id });
+            return origFetch.apply(this, arguments).then(function (res) {
+                try {
+                    var total = Number(res.headers.get("content-length")) || 0;
+                    report({ t: "progress", id: id, loaded: 0, total: total });
+                    if (res.body && res.clone && !res.bodyUsed) {
+                        var reader = res.clone().body.getReader();
+                        var loaded = 0;
+                        var pump = function () {
+                            reader.read().then(function (r) {
+                                if (r.done) { report({ t: "end", id: id, loaded: loaded, total: total }); return; }
+                                loaded += r.value.byteLength;
+                                report({ t: "progress", id: id, loaded: loaded, total: total });
+                                pump();
+                            }, function () { report({ t: "end", id: id, loaded: loaded, total: total }); });
+                        };
+                        pump();
+                    } else {
+                        report({ t: "end", id: id, loaded: total, total: total });
+                    }
+                } catch (e) { report({ t: "end", id: id }); }
+                return res;
+            }, function (err) { report({ t: "end", id: id }); throw err; });
+        };
+    }
+    if (window.XMLHttpRequest) {
+        var origSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function () {
+            var id = ++seq;
+            report({ t: "start", id: id });
+            this.addEventListener("progress", function (e) {
+                report({ t: "progress", id: id, loaded: e.loaded, total: e.lengthComputable ? e.total : 0 });
+            });
+            this.addEventListener("loadend", function (e) {
+                report({ t: "end", id: id, loaded: e.loaded || 0, total: e.lengthComputable ? e.total : 0 });
+            });
+            return origSend.apply(this, arguments);
+        };
+    }
+})();</script><script>(function gameDataHook() {
+    var send = function (ev) {
+        try { if (window.parent && window.parent !== window && window.parent.__gnmathTrackData) window.parent.__gnmathTrackData(ev); } catch (e) {}
+    };
+    try {
+        var S = window.Storage && Storage.prototype;
+        if (S) {
+            var setItem = S.setItem;
+            S.setItem = function (k) { if (this === window.localStorage) send({ t: "ls", key: String(k) }); return setItem.apply(this, arguments); };
+        }
+    } catch (e) {}
+    try {
+        var P = window.IDBObjectStore && IDBObjectStore.prototype;
+        if (P) ["put", "add"].forEach(function (m) {
+            var orig = P[m];
+            P[m] = function () {
+                var req = orig.apply(this, arguments);
+                var db = this.transaction.db.name, store = this.name;
+                req.addEventListener("success", function () { send({ t: "idb", db: db, store: store, key: req.result }); });
+                return req;
+            };
+        });
+        var C = window.IDBCursor && IDBCursor.prototype;
+        if (C && C.update) {
+            var upd = C.update;
+            C.update = function () {
+                try { var src = this.source; var os = src.objectStore || src; send({ t: "idb", db: os.transaction.db.name, store: os.name, key: this.primaryKey }); } catch (e) {}
+                return upd.apply(this, arguments);
+            };
+        }
+    } catch (e) {}
+})();</script>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Lethal Company Web</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; }
+      #unity-container { position: relative; width: 100%; height: 100%; }
+      #unity-canvas { width: 100%; height: 100%; display: block; background: #231F20; outline: none; }
+      #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 240px; display: none; font-family: sans-serif; color: #ccc; text-align: center; }
+      #unity-progress-bar-empty { width: 100%; height: 12px; border: 1px solid #777; margin-top: 8px; }
+      #unity-progress-bar-full { width: 0%; height: 100%; background: white; }
+      #unity-status-text { font-size: 12px; margin-top: 6px; }
+      #unity-warning { position: absolute; left: 50%; top: 5%; transform: translate(-50%); background: rgba(0,0,0,0.7); color: white; padding: 6px 10px; display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+        <div id="unity-status-text">Loading...</div>
+      </div>
+      <div id="unity-warning"></div>
+    </div>
+    <script>
+      window.WispRelayWSState = { sock: null, recvPtr: 0, sid: 0 };
+    </script>
+    <script>
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var statusText = document.querySelector("#unity-status-text");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+     
+      var GH_USER = "larpinguser";
+      var GH_REPO = "lethal";
+      var GH_BRANCH = "main";
+      var GH_PATH = "build/Build"; 
+      var JSDELIVR_BASE = "https://cdn.jsdelivr.net/gh/" + GH_USER + "/" + GH_REPO + "@" + GH_BRANCH + "/" + GH_PATH;
+
+      var DATA_PART_COUNT = 18; 
+      var WASM_PART_COUNT = 5; 
+
+      function padded(n) { return n < 10 ? "0" + n : "" + n; }
+
+      var dataPartUrls = [];
+      for (var i = 1; i <= DATA_PART_COUNT; i++) {
+        dataPartUrls.push(JSDELIVR_BASE + "/build.data.part" + padded(i));
+      }
+      var wasmPartUrls = [];
+      for (var j = 1; j <= WASM_PART_COUNT; j++) {
+        wasmPartUrls.push(JSDELIVR_BASE + "/build.wasm.part" + j);
+      }
+
+      var frameworkUrl = JSDELIVR_BASE + "/build.framework.js";
+      var loaderUrl = JSDELIVR_BASE + "/build.loader.js";
+      var streamingAssetsUrl = JSDELIVR_BASE.replace(/\/Build$/, "") + "/StreamingAssets";
+
+      var config = {
+        dataUrl: null, 
+        frameworkUrl: frameworkUrl,
+        codeUrl: null, 
+        streamingAssetsUrl: streamingAssetsUrl,
+        companyName: "ZeekerssRBLX",
+        productName: "Lethal Company",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+        webglContextAttributes: {
+          antialias: false,
+          preserveDrawingBuffer: true,
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false
+        },
+      };
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+      }
+
+      loadingBar.style.display = "block";
+
+   
+      async function fetchPart(url) {
+        var res = await fetch(url);
+        if (!res.ok) {
+          throw new Error("Failed to fetch " + url + " (HTTP " + res.status + ")");
+        }
+        return res.arrayBuffer();
+      }
+
+      async function reassemble(urls, onEachDone) {
+        var buffers = [];
+        for (var k = 0; k < urls.length; k++) {
+          buffers.push(await fetchPart(urls[k]));
+          onEachDone();
+        }
+        return new Blob(buffers);
+      }
+
+      function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = src;
+          s.onload = resolve;
+          s.onerror = function () { reject(new Error("Failed to load script " + src)); };
+          document.body.appendChild(s);
+        });
+      }
+
+      (async function main() {
+        try {
+          var totalParts = dataPartUrls.length + wasmPartUrls.length;
+          var partsDone = 0;
+
+          function bumpDownloadProgress() {
+            partsDone++;
+     
+            var pct = (partsDone / totalParts) * 80;
+            progressBarFull.style.width = pct + "%";
+            statusText.textContent = "Downloading game files (" + partsDone + "/" + totalParts + ")";
+          }
+
+          statusText.textContent = "Downloading game files (0/" + totalParts + ")";
+
+          var dataBlob = await reassemble(dataPartUrls, bumpDownloadProgress);
+          var wasmBlob = await reassemble(wasmPartUrls, bumpDownloadProgress);
+
+          config.dataUrl = URL.createObjectURL(dataBlob);
+          config.codeUrl = URL.createObjectURL(wasmBlob);
+
+          statusText.textContent = "Starting engine...";
+          await loadScript(loaderUrl);
+
+          var unityInstance = await createUnityInstance(canvas, config, function (progress) {
+            var pct = 80 + progress * 20;
+            progressBarFull.style.width = pct + "%";
+            statusText.textContent = "Loading engine... " + Math.round(progress * 100) + "%";
+          });
+
+          loadingBar.style.display = "none";
+          canvas.focus();
+        } catch (err) {
+          console.error(err);
+          unityShowBanner(err.message || String(err), "error");
+        }
+      })();
+    </script>
+  </body>
+</html>
